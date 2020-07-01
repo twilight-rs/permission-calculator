@@ -16,7 +16,7 @@
  ```toml
  [dependencies]
  rarity-permission-calculator = { branch = "main", git = "https://github.com/rarity-rs/permission-calculator" }
- ```rust
+ ```
 
  # Features
 
@@ -26,7 +26,7 @@
  ```toml
  [dependencies]
  rarity-permission-calculator = { branch = "main", default-features = false, git = "https://github.com/rarity-rs/permission-calculator" }
- ```rust
+ ```
 
  # Examples
 
@@ -113,7 +113,7 @@
  assert_eq!(expected, calculated_permissions);
  assert!(!calculated_permissions.contains(Permissions::SEND_MESSAGES));
  # Ok(()) }
- ```rust
+ ```
 
  [`twilight-rs`]: https://github.com/twilight-rs/twilight
  [license badge]: https://img.shields.io/badge/license-ISC-blue.svg?style=flat-square
