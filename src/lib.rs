@@ -398,9 +398,7 @@ impl<'a> MemberCalculator<'a> {
 
         for overwrite in channel_overwrites {
             if let PermissionOverwriteType::Role(role) = overwrite.kind {
-                if role.0 != self.guild_id.0
-                    && !self.member_role_ids.iter().any(|r| *r == role)
-                {
+                if role.0 != self.guild_id.0 && !self.member_role_ids.iter().any(|r| *r == role) {
                     continue;
                 }
 
