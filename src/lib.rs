@@ -271,7 +271,11 @@ impl<'a> Calculator<'a> {
     ///
     /// [`in_channel`]: struct.MemberCalculator.html#method.in_channel
     /// [`permissions`]: struct.MemberCalculator.html#method.permissions
-    pub fn member<T: IntoIterator<Item = &'a RoleId> + Clone>(self, user_id: UserId, member_role_ids: T) -> MemberCalculator<'a, T> {
+    pub fn member<T: IntoIterator<Item = &'a RoleId> + Clone>(
+        self,
+        user_id: UserId,
+        member_role_ids: T,
+    ) -> MemberCalculator<'a, T> {
         MemberCalculator {
             continue_on_missing_items: self.continue_on_missing_items,
             guild_id: self.id,
@@ -398,7 +402,9 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 
         for overwrite in channel_overwrites.clone() {
             if let PermissionOverwriteType::Role(role) = overwrite.kind {
-                if role.0 != self.guild_id.0 && !self.member_role_ids.clone().into_iter().any(|r| *r == role) {
+                if role.0 != self.guild_id.0
+                    && !self.member_role_ids.clone().into_iter().any(|r| *r == role)
+                {
                     continue;
                 }
 
