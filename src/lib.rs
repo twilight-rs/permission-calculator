@@ -142,7 +142,7 @@ use std::{
 };
 use twilight_model::{
     channel::permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
-    guild::Permissions,
+    guild::{Permissions, Role as TwilightRole},
     id::{GuildId, RoleId, UserId},
 };
 
@@ -207,6 +207,21 @@ impl From<(i64, Permissions)> for Role {
         Self {
             permissions,
             position,
+        }
+    }
+}
+
+impl From<TwilightRole> for Role {
+    fn from(role: TwilightRole) -> Self {
+        Self::from(&role)
+    }
+}
+
+impl From<&'_ TwilightRole> for Role {
+    fn from(role: &'_ TwilightRole) -> Self {
+        Self {
+            permissions: role.permissions,
+            position: role.position,
         }
     }
 }
