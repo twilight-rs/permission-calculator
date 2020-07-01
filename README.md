@@ -61,7 +61,7 @@
  Let's see that in code:
 
  ```rust
- fn main() -> Result<(), Box<dyn std::error::Error>> {
+ # fn main() -> Result<(), Box<dyn std::error::Error>> {
  use rarity_permission_calculator::{Calculator, Role};
  use std::collections::HashMap;
  use twilight_model::{
