@@ -1,0 +1,12 @@
+[package]
+authors = ["Vivian Hellyer <vivian@hellyer.dev>"]
+edition = "2018"
+name = "rarity-permission-calculator"
+version = "0.1.0"
+
+[dependencies]
+log = { default-features = false, optional = true, version = "0.4" }
+twilight-model = { branch = "trunk", git = "https://github.com/twilight-rs/twilight" }
+
+[features]
+default = ["log"]
