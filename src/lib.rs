@@ -271,7 +271,7 @@ impl<'a> Calculator<'a> {
     ///
     /// [`in_channel`]: struct.MemberCalculator.html#method.in_channel
     /// [`permissions`]: struct.MemberCalculator.html#method.permissions
-    pub fn member(self, user_id: UserId, member_role_ids: &'a [RoleId]) -> MemberCalculator<'a> {
+    pub fn member<T: IntoIterator<Item = &'a RoleId> + Clone>(self, user_id: UserId, member_role_ids: T) -> MemberCalculator<'a, T> {
         MemberCalculator {
             continue_on_missing_items: self.continue_on_missing_items,
             guild_id: self.id,
@@ -293,16 +293,16 @@ impl<'a> Calculator<'a> {
 /// [`Calculator::member`]: struct.Calculator.html#method.member
 /// [`in_channel`]: #method.in_channel
 #[must_use = "the member calculator isn't useful if you don't calculate permissions"]
-pub struct MemberCalculator<'a> {
+pub struct MemberCalculator<'a, T: IntoIterator<Item = &'a RoleId> + Clone> {
     continue_on_missing_items: bool,
     guild_id: GuildId,
     guild_owner_id: UserId,
-    member_role_ids: &'a [RoleId],
+    member_role_ids: T,
     roles: &'a HashMap<RoleId, Role>,
     user_id: UserId,
 }
 
-impl<'a> MemberCalculator<'a> {
+impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// Calculate the guild-level permissions of a member.
     ///
     /// # Errors
@@ -336,7 +336,7 @@ impl<'a> MemberCalculator<'a> {
         };
 
         // Permissions on a user's roles are simply additive.
-        for role_id in self.member_role_ids {
+        for role_id in self.member_role_ids.clone() {
             let role = if let Some(role) = self.roles.get(&role_id) {
                 role
             } else {
@@ -388,17 +388,17 @@ impl<'a> MemberCalculator<'a> {
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
     /// [`Error::MemberRoleMissing`]: enum.Error.html#method.MemberRoleMissing
-    pub fn in_channel(
+    pub fn in_channel<U: IntoIterator<Item = &'a PermissionOverwrite> + Clone>(
         self,
-        channel_overwrites: &'a [PermissionOverwrite],
+        channel_overwrites: U,
     ) -> Result<Permissions, Error> {
         let mut permissions = self.permissions()?;
 
         let mut data = Vec::new();
 
-        for overwrite in channel_overwrites {
+        for overwrite in channel_overwrites.clone() {
             if let PermissionOverwriteType::Role(role) = overwrite.kind {
-                if role.0 != self.guild_id.0 && !self.member_role_ids.iter().any(|r| *r == role) {
+                if role.0 != self.guild_id.0 && !self.member_role_ids.clone().into_iter().any(|r| *r == role) {
                     continue;
                 }
 
