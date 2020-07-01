@@ -13,7 +13,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rarity-permission-calculator = { git = "https://github.com/rarity-rs/permission-calculator" }
+//! rarity-permission-calculator = { branch = "main", git = "https://github.com/rarity-rs/permission-calculator" }
 //! ```
 //!
 //! # Features
@@ -23,7 +23,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rarity-permission-calculator = { default-features = false, git = "https://github.com/rarity-rs/permission-calculator" }
+//! rarity-permission-calculator = { branch = "main", default-features = false, git = "https://github.com/rarity-rs/permission-calculator" }
 //! ```
 //!
 //! # Examples
