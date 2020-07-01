@@ -227,6 +227,7 @@ impl From<&'_ TwilightRole> for Role {
 }
 
 /// A calculator to calculate permissions of various things within in a guild.
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use = "the calculator isn't useful if you don't calculate the permissions of something with it"]
 pub struct Calculator<'a> {
     continue_on_missing_items: bool,
@@ -296,6 +297,7 @@ impl<'a> Calculator<'a> {
 ///
 /// [`Calculator::member`]: struct.Calculator.html#method.member
 /// [`in_channel`]: #method.in_channel
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use = "the member calculator isn't useful if you don't calculate permissions"]
 pub struct MemberCalculator<'a, T: IntoIterator<Item = &'a RoleId> + Clone> {
     continue_on_missing_items: bool,
@@ -430,4 +432,19 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 
         Ok(permissions)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Calculator, Error, MemberCalculator, Role};
+    use static_assertions::assert_impl_all;
+    use std::{
+        error::Error as StdError,
+        fmt::{Debug, Display},
+    };
+
+    assert_impl_all!(Calculator<'static>: Clone, Debug, Eq, PartialEq);
+    assert_impl_all!(Error: Clone, Debug, Display, Eq, PartialEq, StdError);
+    assert_impl_all!(MemberCalculator<'static, &[_]>: Clone, Debug, Eq, PartialEq);
+    assert_impl_all!(Role: Clone, Debug, Eq, PartialEq);
 }

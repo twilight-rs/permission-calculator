@@ -16,5 +16,8 @@ version = "0.1.0"
 log = { default-features = false, optional = true, version = "0.4" }
 twilight-model = { branch = "trunk", git = "https://github.com/twilight-rs/twilight" }
 
+[dev-dependencies]
+static_assertions = { default-features = false, version = "1" }
+
 [features]
 default = ["log"]
