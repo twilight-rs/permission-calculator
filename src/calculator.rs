@@ -230,6 +230,24 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
             return Ok(Permissions::empty());
         }
 
+        let role_send_messages_denied = roles_deny.contains(Permissions::SEND_MESSAGES)
+            && !roles_allow.contains(Permissions::SEND_MESSAGES)
+            && !roles_allow.contains(Permissions::SEND_MESSAGES);
+
+        let member_send_messages_denied = member_deny.contains(Permissions::SEND_MESSAGES)
+            && !member_allow.contains(Permissions::SEND_MESSAGES);
+
+        if member_send_messages_denied || role_send_messages_denied {
+            let perms = Permissions::ATTACH_FILES
+                | Permissions::EMBED_LINKS
+                | Permissions::MENTION_EVERYONE
+                | Permissions::SEND_TTS_MESSAGES;
+
+            member_allow.remove(perms);
+            roles_allow.remove(perms);
+            permissions.remove(perms);
+        }
+
         permissions.remove(roles_deny);
         permissions.insert(roles_allow);
         permissions.remove(member_deny);
@@ -378,5 +396,35 @@ mod tests {
             .unwrap();
 
         assert_eq!(calculated, Permissions::SEND_MESSAGES);
+    }
+
+    // Test that denying the "Send Messages" permission denies all message
+    // send related permissions.
+    #[test]
+    fn test_deny_send_messages_removes_related() {
+        let guild_id = GuildId(1);
+        let guild_owner_id = UserId(2);
+        let user_id = UserId(3);
+        let member_roles = &[RoleId(4)];
+        let mut roles = HashMap::with_capacity(1);
+        roles.insert(
+            RoleId(1),
+            Permissions::MANAGE_MESSAGES | Permissions::EMBED_LINKS | Permissions::MENTION_EVERYONE,
+        );
+        roles.insert(RoleId(4), Permissions::empty());
+
+        // First, test when it's denied for an overwrite on a role the user has.
+        let overwrites = &[PermissionOverwrite {
+            allow: Permissions::ATTACH_FILES,
+            deny: Permissions::SEND_MESSAGES,
+            kind: PermissionOverwriteType::Role(RoleId(4)),
+        }];
+
+        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
+            .member(user_id, member_roles)
+            .in_channel(ChannelType::GuildText, overwrites)
+            .unwrap();
+
+        assert_eq!(calculated, Permissions::MANAGE_MESSAGES);
     }
 }
