@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use rarity_permission_calculator::Calculator;
 use std::collections::HashMap;
 use twilight_model::{
-    channel::permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
+    channel::permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
     guild::Permissions,
     id::{GuildId, RoleId, UserId},
 };
