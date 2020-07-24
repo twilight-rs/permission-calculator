@@ -60,7 +60,7 @@
 //!
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use rarity_permission_calculator::{Calculator, Role};
+//! use rarity_permission_calculator::Calculator;
 //! use std::collections::HashMap;
 //! use twilight_model::{
 //!     channel::permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
@@ -75,15 +75,15 @@
 //!
 //! let mut roles = HashMap::new();
 //! // Insert the @everyone role that allows everyone to view channels.
-//! roles.insert(RoleId(1), Role::new(0, Permissions::VIEW_CHANNEL));
+//! roles.insert(RoleId(1), Permissions::VIEW_CHANNEL);
 //!
 //! // And another role that the member doesn't have, but grants the
 //! // "MANAGE_ROLES" permission in the guild as a whole.
-//! roles.insert(RoleId(4), Role::new(1, Permissions::MANAGE_ROLES));
+//! roles.insert(RoleId(4), Permissions::MANAGE_ROLES);
 //!
 //! // And another that the member *does* have, which grants the
 //! // "SEND_MESSAGES" permission in the guild as a whole.
-//! roles.insert(RoleId(5), Role::new(2, Permissions::SEND_MESSAGES));
+//! roles.insert(RoleId(5), Permissions::SEND_MESSAGES);
 //!
 //! let channel_overwrites = &[
 //!     PermissionOverwrite {
@@ -123,7 +123,6 @@
 #![doc(html_logo_url = "https://raw.githubusercontent.com/rarity-rs/assets/main/logo.png")]
 #![deny(
     clippy::all,
-    clippy::pedantic,
     future_incompatible,
     missing_docs,
     nonstandard_style,
@@ -137,10 +136,8 @@ pub mod prelude;
 
 mod calculator;
 mod error;
-mod role;
 
 pub use self::{
     calculator::{Calculator, MemberCalculator},
     error::Error,
-    role::Role,
 };

@@ -1,4 +1,4 @@
-use crate::{error::Error, role::Role};
+use crate::error::Error;
 use std::collections::HashMap;
 use twilight_model::{
     channel::permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
@@ -13,7 +13,7 @@ pub struct Calculator<'a> {
     continue_on_missing_items: bool,
     id: GuildId,
     owner_id: UserId,
-    roles: &'a HashMap<RoleId, Role>,
+    roles: &'a HashMap<RoleId, Permissions>,
 }
 
 impl<'a> Calculator<'a> {
@@ -21,7 +21,7 @@ impl<'a> Calculator<'a> {
     ///
     /// Use the methods on this calculator to create new, more specific
     /// calculators.
-    pub fn new(id: GuildId, owner_id: UserId, roles: &'a HashMap<RoleId, Role>) -> Self {
+    pub fn new(id: GuildId, owner_id: UserId, roles: &'a HashMap<RoleId, Permissions>) -> Self {
         Self {
             continue_on_missing_items: false,
             id,
@@ -79,12 +79,12 @@ impl<'a> Calculator<'a> {
 /// [`in_channel`]: #method.in_channel
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use = "the member calculator isn't useful if you don't calculate permissions"]
-pub struct MemberCalculator<'a, T: IntoIterator<Item = &'a RoleId> + Clone> {
+pub struct MemberCalculator<'a, T> {
     continue_on_missing_items: bool,
     guild_id: GuildId,
     guild_owner_id: UserId,
     member_role_ids: T,
-    roles: &'a HashMap<RoleId, Role>,
+    roles: &'a HashMap<RoleId, Permissions>,
     user_id: UserId,
 }
 
@@ -106,8 +106,8 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         }
 
         // The permissions that everyone has is the baseline.
-        let mut permissions = if let Some(role) = self.roles.get(&RoleId(self.guild_id.0)) {
-            role.permissions
+        let mut permissions = if let Some(permissions) = self.roles.get(&RoleId(self.guild_id.0)) {
+            *permissions
         } else {
             #[cfg(feature = "log")]
             log::debug!("Everyone role not in guild {}", self.guild_id,);
@@ -123,8 +123,8 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 
         // Permissions on a user's roles are simply additive.
         for role_id in self.member_role_ids.clone() {
-            let role = if let Some(role) = self.roles.get(&role_id) {
-                role
+            let role_permissions = if let Some(role) = self.roles.get(&role_id) {
+                *role
             } else {
                 #[cfg(feature = "log")]
                 log::debug!(
@@ -147,7 +147,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
                 return Ok(Permissions::all());
             }
 
-            permissions |= role.permissions;
+            permissions |= role_permissions;
         }
 
         Ok(permissions)
@@ -180,35 +180,45 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     ) -> Result<Permissions, Error> {
         let mut permissions = self.permissions()?;
 
-        let mut data = Vec::new();
+        // Hierarchy documentation:
+        // <https://discord.com/developers/docs/topics/permissions#permission-overwrites>
+        let mut member_allow = Permissions::empty();
+        let mut member_deny = Permissions::empty();
+        let mut roles_allow = Permissions::empty();
+        let mut roles_deny = Permissions::empty();
 
         for overwrite in channel_overwrites.clone() {
-            if let PermissionOverwriteType::Role(role) = overwrite.kind {
-                if role.0 != self.guild_id.0
-                    && !self.member_role_ids.clone().into_iter().any(|r| *r == role)
-                {
-                    continue;
-                }
+            match overwrite.kind {
+                PermissionOverwriteType::Role(role) => {
+                    // We need to process the @everyone role first, so apply it
+                    // straight to the permissions. The other roles' permissions
+                    // will be applied later.
+                    if role.0 == self.guild_id.0 {
+                        permissions.remove(overwrite.deny);
+                        permissions.insert(overwrite.allow);
 
-                if let Some(role) = self.roles.get(&role) {
-                    data.push((role.position, overwrite.deny, overwrite.allow));
+                        continue;
+                    }
+
+                    if !self.member_role_ids.clone().into_iter().any(|r| *r == role) {
+                        continue;
+                    }
+
+                    roles_allow.insert(overwrite.allow);
+                    roles_deny.insert(overwrite.deny);
                 }
+                PermissionOverwriteType::Member(user_id) if user_id == self.user_id => {
+                    member_allow.insert(overwrite.allow);
+                    member_deny.insert(overwrite.deny);
+                }
+                PermissionOverwriteType::Member(_) => {}
             }
         }
 
-        data.sort_by(|a, b| a.0.cmp(&b.0));
-
-        for overwrite in data {
-            permissions = (permissions & !overwrite.1) | overwrite.2;
-        }
-
-        for overwrite in channel_overwrites {
-            if PermissionOverwriteType::Member(self.user_id) != overwrite.kind {
-                continue;
-            }
-
-            permissions = (permissions & !overwrite.deny) | overwrite.allow;
-        }
+        permissions.remove(roles_deny);
+        permissions.insert(roles_allow);
+        permissions.remove(member_deny);
+        permissions.insert(member_allow);
 
         Ok(permissions)
     }
@@ -216,10 +226,10 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Calculator, MemberCalculator};
+    use super::{Calculator, MemberCalculator, RoleId};
     use static_assertions::assert_impl_all;
     use std::fmt::Debug;
 
     assert_impl_all!(Calculator<'static>: Clone, Debug, Eq, PartialEq);
-    assert_impl_all!(MemberCalculator<'static, &[_]>: Clone, Debug, Eq, PartialEq);
+    assert_impl_all!(MemberCalculator<'static, &[RoleId]>: Clone, Debug, Eq, PartialEq);
 }
