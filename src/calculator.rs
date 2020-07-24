@@ -1,7 +1,7 @@
 use crate::error::Error;
 use std::collections::HashMap;
 use twilight_model::{
-    channel::permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
+    channel::{permission_overwrite::{PermissionOverwrite, PermissionOverwriteType}, ChannelType},
     guild::Permissions,
     id::{GuildId, RoleId, UserId},
 };
@@ -176,6 +176,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// [`Error::MemberRoleMissing`]: enum.Error.html#method.MemberRoleMissing
     pub fn in_channel<U: IntoIterator<Item = &'a PermissionOverwrite> + Clone>(
         self,
+        channel_type: ChannelType,
         channel_overwrites: U,
     ) -> Result<Permissions, Error> {
         let mut permissions = self.permissions()?;
@@ -231,6 +232,51 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         permissions.remove(member_deny);
         permissions.insert(member_allow);
 
+        // Remove permissions that can't be used in a channel, i.e. are relevant
+        // to guild-level permission calculating.
+        permissions.remove(
+            Permissions::ADMINISTRATOR
+            | Permissions::BAN_MEMBERS
+            | Permissions::CHANGE_NICKNAME
+            | Permissions::KICK_MEMBERS
+            | Permissions::MANAGE_CHANNELS
+            | Permissions::MANAGE_EMOJIS
+            | Permissions::MANAGE_GUILD
+            | Permissions::MANAGE_NICKNAMES
+            | Permissions::VIEW_AUDIT_LOG
+            | Permissions::VIEW_GUILD_INSIGHTS
+        );
+
+        // Now remove permissions that can't be used in text or voice channels
+        // based on this channel's type. This handles category channels by
+        // removing all text and voice permissions.
+        if channel_type != ChannelType::GuildText {
+            permissions.remove(
+                Permissions::ADD_REACTIONS
+                | Permissions::ATTACH_FILES
+                | Permissions::EMBED_LINKS
+                | Permissions::MANAGE_MESSAGES
+                | Permissions::MENTION_EVERYONE
+                | Permissions::READ_MESSAGE_HISTORY
+                | Permissions::SEND_MESSAGES
+                | Permissions::SEND_TTS_MESSAGES
+                | Permissions::USE_EXTERNAL_EMOJIS
+            );
+        }
+
+        if channel_type != ChannelType::GuildVoice {
+            permissions.remove(
+                Permissions::CONNECT
+                | Permissions::DEAFEN_MEMBERS
+                | Permissions::MOVE_MEMBERS
+                | Permissions::MUTE_MEMBERS
+                | Permissions::PRIORITY_SPEAKER
+                | Permissions::SPEAK
+                | Permissions::STREAM
+                | Permissions::USE_VAD
+            );
+        }
+
         Ok(permissions)
     }
 }
@@ -241,7 +287,10 @@ mod tests {
     use static_assertions::assert_impl_all;
     use std::{collections::HashMap, fmt::Debug};
     use twilight_model::{
-        channel::permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
+        channel::{
+            permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
+            ChannelType,
+        },
         guild::Permissions,
     };
 
@@ -269,7 +318,7 @@ mod tests {
 
         let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
             .member(user_id, member_roles)
-            .in_channel(overwrites)
+            .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
         assert_eq!(calculated, Permissions::empty());
@@ -283,9 +332,45 @@ mod tests {
 
         let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
             .member(user_id, member_roles)
-            .in_channel(overwrites)
+            .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
         assert_eq!(calculated, Permissions::empty());
+    }
+
+    #[test]
+    fn test_remove_text_perms_when_voice() {
+        let guild_id = GuildId(1);
+        let guild_owner_id = UserId(2);
+        let user_id = UserId(3);
+        let member_roles = &[RoleId(4)];
+        let mut roles = HashMap::with_capacity(1);
+        roles.insert(RoleId(1), Permissions::CONNECT);
+        roles.insert(RoleId(4), Permissions::SEND_MESSAGES);
+
+        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
+            .member(user_id, member_roles)
+            .in_channel(ChannelType::GuildVoice, &[])
+            .unwrap();
+
+        assert_eq!(calculated, Permissions::CONNECT);
+    }
+
+    #[test]
+    fn test_remove_voice_perms_when_text() {
+        let guild_id = GuildId(1);
+        let guild_owner_id = UserId(2);
+        let user_id = UserId(3);
+        let member_roles = &[RoleId(4)];
+        let mut roles = HashMap::with_capacity(1);
+        roles.insert(RoleId(1), Permissions::CONNECT);
+        roles.insert(RoleId(4), Permissions::SEND_MESSAGES);
+
+        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
+            .member(user_id, member_roles)
+            .in_channel(ChannelType::GuildText, &[])
+            .unwrap();
+
+        assert_eq!(calculated, Permissions::SEND_MESSAGES);
     }
 }

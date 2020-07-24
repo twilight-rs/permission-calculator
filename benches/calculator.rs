@@ -2,7 +2,10 @@ use criterion::{criterion_group, criterion_main, Criterion};
 use rarity_permission_calculator::Calculator;
 use std::collections::HashMap;
 use twilight_model::{
-    channel::permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
+    channel::{
+        permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
+        ChannelType,
+    },
     guild::Permissions,
     id::{GuildId, RoleId, UserId},
 };
@@ -40,7 +43,7 @@ fn member_calculator_in_channel() {
 
     let calculated_permissions = Calculator::new(guild_id, guild_owner_id, &roles)
         .member(user_id, member_roles)
-        .in_channel(channel_overwrites)
+        .in_channel(ChannelType::GuildText, channel_overwrites)
         .unwrap();
 
     // Now that we've got the member's permissions in the channel, we can
