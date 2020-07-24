@@ -160,6 +160,56 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// account a combination of the guild-level permissions and channel-level
     /// permissions.
     ///
+    /// When the "View Channel" permission is denied on the role level and isn't
+    /// enabled on a role or the member or is denied on the member but isn't
+    /// enabled on the member, then an empty permission set will be returned.
+    ///
+    /// When the "Send Messages" permission is denied and is not similarly
+    /// enabled like above, then the "Attach Files", "Embed Links",
+    /// "Mention Everyone", and "Send TTS Messages" permissions will not be
+    /// present in the returned permission set.
+    ///
+    /// When the given channel type is not a guild text channel, then the
+    /// following text permissions will not be present, even if enabled on the
+    /// guild role level:
+    ///
+    /// - Add Reactions
+    /// - Attach Files
+    /// - Embed Links
+    /// - Manage Messages
+    /// - Mention Everyone
+    /// - Read Message History
+    /// - Send Messages
+    /// - Send TTS Messages
+    /// - Use External Emojis
+    ///
+    /// When the given channel type is not a guild voice channel, then the
+    /// following voice permissions will not be present, even if enabled on the
+    /// guild role level:
+    ///
+    /// - Deafen Members
+    /// - Move Members
+    /// - Mute Members
+    /// - Priority Speaker
+    /// - Speak
+    /// - Stream
+    /// - Use VAD
+    ///
+    /// The following guild level permissions will always be removed:
+    ///
+    /// - Administrator
+    /// - Ban Members
+    /// - Change Nickname
+    /// - Kick Members
+    /// - Manage Emojis
+    /// - Manage Guild
+    /// - Manage Nicknames
+    /// - View Audit Log
+    /// - View Guild Insights
+    ///
+    /// If you need to know a member's guild-level permissions (such as whether
+    /// they have the "View Audit Log" permission), use [`permissions`].
+    ///
     /// # Examples
     ///
     /// See the crate-level documentation for an example.
@@ -177,6 +227,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
     /// [`Error::MemberRoleMissing`]: enum.Error.html#method.MemberRoleMissing
+    /// [`permissions`]: #method.permissions
     pub fn in_channel<U: IntoIterator<Item = &'a PermissionOverwrite> + Clone>(
         self,
         channel_type: ChannelType,
@@ -260,7 +311,6 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
                 | Permissions::BAN_MEMBERS
                 | Permissions::CHANGE_NICKNAME
                 | Permissions::KICK_MEMBERS
-                | Permissions::MANAGE_CHANNELS
                 | Permissions::MANAGE_EMOJIS
                 | Permissions::MANAGE_GUILD
                 | Permissions::MANAGE_NICKNAMES
