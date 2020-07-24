@@ -1,7 +1,10 @@
 use crate::error::Error;
 use std::collections::HashMap;
 use twilight_model::{
-    channel::{permission_overwrite::{PermissionOverwrite, PermissionOverwriteType}, ChannelType},
+    channel::{
+        permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
+        ChannelType,
+    },
     guild::Permissions,
     id::{GuildId, RoleId, UserId},
 };
@@ -236,15 +239,15 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         // to guild-level permission calculating.
         permissions.remove(
             Permissions::ADMINISTRATOR
-            | Permissions::BAN_MEMBERS
-            | Permissions::CHANGE_NICKNAME
-            | Permissions::KICK_MEMBERS
-            | Permissions::MANAGE_CHANNELS
-            | Permissions::MANAGE_EMOJIS
-            | Permissions::MANAGE_GUILD
-            | Permissions::MANAGE_NICKNAMES
-            | Permissions::VIEW_AUDIT_LOG
-            | Permissions::VIEW_GUILD_INSIGHTS
+                | Permissions::BAN_MEMBERS
+                | Permissions::CHANGE_NICKNAME
+                | Permissions::KICK_MEMBERS
+                | Permissions::MANAGE_CHANNELS
+                | Permissions::MANAGE_EMOJIS
+                | Permissions::MANAGE_GUILD
+                | Permissions::MANAGE_NICKNAMES
+                | Permissions::VIEW_AUDIT_LOG
+                | Permissions::VIEW_GUILD_INSIGHTS,
         );
 
         // Now remove permissions that can't be used in text or voice channels
@@ -253,27 +256,27 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         if channel_type != ChannelType::GuildText {
             permissions.remove(
                 Permissions::ADD_REACTIONS
-                | Permissions::ATTACH_FILES
-                | Permissions::EMBED_LINKS
-                | Permissions::MANAGE_MESSAGES
-                | Permissions::MENTION_EVERYONE
-                | Permissions::READ_MESSAGE_HISTORY
-                | Permissions::SEND_MESSAGES
-                | Permissions::SEND_TTS_MESSAGES
-                | Permissions::USE_EXTERNAL_EMOJIS
+                    | Permissions::ATTACH_FILES
+                    | Permissions::EMBED_LINKS
+                    | Permissions::MANAGE_MESSAGES
+                    | Permissions::MENTION_EVERYONE
+                    | Permissions::READ_MESSAGE_HISTORY
+                    | Permissions::SEND_MESSAGES
+                    | Permissions::SEND_TTS_MESSAGES
+                    | Permissions::USE_EXTERNAL_EMOJIS,
             );
         }
 
         if channel_type != ChannelType::GuildVoice {
             permissions.remove(
                 Permissions::CONNECT
-                | Permissions::DEAFEN_MEMBERS
-                | Permissions::MOVE_MEMBERS
-                | Permissions::MUTE_MEMBERS
-                | Permissions::PRIORITY_SPEAKER
-                | Permissions::SPEAK
-                | Permissions::STREAM
-                | Permissions::USE_VAD
+                    | Permissions::DEAFEN_MEMBERS
+                    | Permissions::MOVE_MEMBERS
+                    | Permissions::MUTE_MEMBERS
+                    | Permissions::PRIORITY_SPEAKER
+                    | Permissions::SPEAK
+                    | Permissions::STREAM
+                    | Permissions::USE_VAD,
             );
         }
 
@@ -288,7 +291,7 @@ mod tests {
     use std::{collections::HashMap, fmt::Debug};
     use twilight_model::{
         channel::{
-            permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
+            permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
             ChannelType,
         },
         guild::Permissions,
@@ -306,7 +309,10 @@ mod tests {
         let user_id = UserId(3);
         let member_roles = &[RoleId(4)];
         let mut roles = HashMap::with_capacity(1);
-        roles.insert(RoleId(1), Permissions::SEND_MESSAGES | Permissions::MENTION_EVERYONE);
+        roles.insert(
+            RoleId(1),
+            Permissions::SEND_MESSAGES | Permissions::MENTION_EVERYONE,
+        );
         roles.insert(RoleId(4), Permissions::empty());
 
         // First, test when it's denied for an overwrite on a role the user has.
