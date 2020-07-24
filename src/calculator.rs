@@ -174,6 +174,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
     /// [`Error::MemberRoleMissing`]: enum.Error.html#method.MemberRoleMissing
+    #[allow(unused)]
     pub fn in_channel<U: IntoIterator<Item = &'a PermissionOverwrite> + Clone>(
         self,
         channel_overwrites: U,
@@ -215,6 +216,17 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
             }
         }
 
+        let role_view_channel_denied = roles_deny.contains(Permissions::VIEW_CHANNEL)
+            && !roles_allow.contains(Permissions::VIEW_CHANNEL)
+            && !roles_allow.contains(Permissions::VIEW_CHANNEL);
+
+        let member_view_channel_denied = member_deny.contains(Permissions::VIEW_CHANNEL)
+            && !member_allow.contains(Permissions::VIEW_CHANNEL);
+
+        if member_view_channel_denied || role_view_channel_denied {
+            return Ok(Permissions::empty());
+        }
+
         permissions.remove(roles_deny);
         permissions.insert(roles_allow);
         permissions.remove(member_deny);
@@ -226,10 +238,55 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Calculator, MemberCalculator, RoleId};
+    use super::{Calculator, GuildId, MemberCalculator, RoleId, UserId};
     use static_assertions::assert_impl_all;
-    use std::fmt::Debug;
+    use std::{collections::HashMap, fmt::Debug};
+    use twilight_model::{
+        channel::permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
+        guild::Permissions,
+    };
 
     assert_impl_all!(Calculator<'static>: Clone, Debug, Eq, PartialEq);
     assert_impl_all!(MemberCalculator<'static, &[RoleId]>: Clone, Debug, Eq, PartialEq);
+
+    // Test that a permission overwrite denying the "View Channel" permission
+    // implicitly denies all other permissions.
+    #[test]
+    fn test_view_channel_deny_implicit() {
+        let guild_id = GuildId(1);
+        let guild_owner_id = UserId(2);
+        let user_id = UserId(3);
+        let member_roles = &[RoleId(4)];
+        let mut roles = HashMap::with_capacity(1);
+        roles.insert(RoleId(1), Permissions::SEND_MESSAGES | Permissions::MENTION_EVERYONE);
+        roles.insert(RoleId(4), Permissions::empty());
+
+        // First, test when it's denied for an overwrite on a role the user has.
+        let overwrites = &[PermissionOverwrite {
+            allow: Permissions::SEND_TTS_MESSAGES,
+            deny: Permissions::VIEW_CHANNEL,
+            kind: PermissionOverwriteType::Role(RoleId(4)),
+        }];
+
+        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
+            .member(user_id, member_roles)
+            .in_channel(overwrites)
+            .unwrap();
+
+        assert_eq!(calculated, Permissions::empty());
+
+        // And now that it's denied for an overwrite on the member.
+        let overwrites = &[PermissionOverwrite {
+            allow: Permissions::SEND_TTS_MESSAGES,
+            deny: Permissions::VIEW_CHANNEL,
+            kind: PermissionOverwriteType::Member(UserId(3)),
+        }];
+
+        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
+            .member(user_id, member_roles)
+            .in_channel(overwrites)
+            .unwrap();
+
+        assert_eq!(calculated, Permissions::empty());
+    }
 }
