@@ -17,7 +17,12 @@ log = { default-features = false, optional = true, version = "0.4" }
 twilight-model = { branch = "trunk", git = "https://github.com/twilight-rs/twilight" }
 
 [dev-dependencies]
+criterion = { default-features = false, version = "0.3" }
 static_assertions = { default-features = false, version = "1" }
 
 [features]
 default = ["log"]
+
+[[bench]]
+name = "calculator"
+harness = false
