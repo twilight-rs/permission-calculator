@@ -174,7 +174,6 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
     /// [`Error::MemberRoleMissing`]: enum.Error.html#method.MemberRoleMissing
-    #[allow(unused)]
     pub fn in_channel<U: IntoIterator<Item = &'a PermissionOverwrite> + Clone>(
         self,
         channel_overwrites: U,
