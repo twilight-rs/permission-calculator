@@ -13,7 +13,7 @@ readme = "README.md"
 version = "0.1.0"
 
 [dependencies]
-log = { default-features = false, optional = true, version = "0.4" }
+tracing = { default-features = false, optional = true, version = "0.1" }
 twilight-model = { default-features = false, version = "0.1" }
 
 [dev-dependencies]
@@ -21,7 +21,7 @@ criterion = { default-features = false, version = "0.3" }
 static_assertions = { default-features = false, version = "1" }
 
 [features]
-default = ["log"]
+default = ["tracing"]
 
 [[bench]]
 name = "calculator"

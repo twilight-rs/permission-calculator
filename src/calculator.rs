@@ -112,8 +112,11 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         let mut permissions = if let Some(permissions) = self.roles.get(&RoleId(self.guild_id.0)) {
             *permissions
         } else {
-            #[cfg(feature = "log")]
-            log::debug!("Everyone role not in guild {}", self.guild_id,);
+            #[cfg(feature = "tracing")]
+            tracing::debug!(
+                guild_id = %self.guild_id,
+                "Everyone role not in guild",
+            );
 
             if self.continue_on_missing_items {
                 Permissions::empty()
@@ -129,11 +132,11 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
             let role_permissions = if let Some(role) = self.roles.get(&role_id) {
                 *role
             } else {
-                #[cfg(feature = "log")]
-                log::debug!(
-                    "User {} has role {} but it was not provided",
-                    self.user_id,
-                    role_id,
+                #[cfg(feature = "tracing")]
+                tracing::debug!(
+                    role_id = %role_id,
+                    user_id = %self.user_id,
+                    "User has role but it was not provided",
                 );
 
                 if self.continue_on_missing_items {
