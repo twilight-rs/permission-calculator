@@ -358,7 +358,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::{Calculator, GuildId, MemberCalculator, RoleId, UserId};
-    use static_assertions::assert_impl_all;
+    use static_assertions::{assert_impl_all, assert_obj_safe};
     use std::{collections::HashMap, fmt::Debug};
     use twilight_model::{
         channel::{
@@ -368,8 +368,9 @@ mod tests {
         guild::Permissions,
     };
 
-    assert_impl_all!(Calculator<'static>: Clone, Debug, Eq, PartialEq);
-    assert_impl_all!(MemberCalculator<'static, &[RoleId]>: Clone, Debug, Eq, PartialEq);
+    assert_impl_all!(Calculator<'static>: Clone, Debug, Eq, PartialEq, Send, Sync);
+    assert_impl_all!(MemberCalculator<'static, &[RoleId]>: Clone, Debug, Eq, PartialEq, Send, Sync);
+    assert_obj_safe!(Calculator<'_>, MemberCalculator<'_, &[RoleId]>);
 
     // Test that a permission overwrite denying the "View Channel" permission
     // implicitly denies all other permissions.
