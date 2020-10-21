@@ -1,14 +1,14 @@
 [package]
 authors = ["Vivian Hellyer <vivian@hellyer.dev>"]
-documentation = "https://rarity.cascadia.cafe/rarity_permission_calculator/index.html"
+documentation = "https://rarity.cascadia.cafe/rarity_permission_calculator/index.html" # TODO: where is the documentation?
 edition = "2018"
-homepage = "https://github.com/rarity-rs/permission-calculator"
+homepage = "https://github.com/twilight-rs/permission-calculator"
 include = ["src/*.rs", "Cargo.toml", "README.md"]
 keywords = ["twilight"]
 license = "ISC"
-name = "rarity-permission-calculator"
+name = "twilight-permission-calculator"
 publish = false
-repository = "https://github.com/rarity-rs/permission-calculator.git"
+repository = "https://github.com/twilight-rs/permission-calculator.git"
 readme = "README.md"
 version = "0.1.0"
 
