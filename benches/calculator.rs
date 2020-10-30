@@ -1,5 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rarity_permission_calculator::Calculator;
+use twilight_permission_calculator::Calculator;
 use std::collections::HashMap;
 use twilight_model::{
     channel::{

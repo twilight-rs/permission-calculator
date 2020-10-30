@@ -1,10 +1,10 @@
-//![![license badge][]][license link] [![rust badge]][rust link]
+//! [![discord badge][]][discord link] [![github badge][]][github link] [![license badge][]][license link] [![rust badge]][rust link]
 //!
 //! ![project logo][logo]
 //!
-//! # rarity-permission-calculator
+//! # twilight-permission-calculator
 //!
-//! `rarity-permission-calculator` is a permission calculator for the Discord
+//! `twilight-permission-calculator` is a permission calculator for the Discord
 //! [`twilight-rs`] library.
 //!
 //! # Installation
@@ -13,17 +13,17 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rarity-permission-calculator = { branch = "main", git = "https://github.com/rarity-rs/permission-calculator" }
+//! twilight-permission-calculator = { branch = "main", git = "https://github.com/twilight-rs/permission-calculator" }
 //! ```
 //!
 //! # Features
 //!
-//! The `tracing` dependency is optional and can be disabled if you don't want
+//! The `log` dependency is optional and can be disabled if you don't want
 //! logging. To do this, use this in your `Cargo.toml`:
 //!
 //! ```toml
 //! [dependencies]
-//! rarity-permission-calculator = { branch = "main", default-features = false, git = "https://github.com/rarity-rs/permission-calculator" }
+//! twilight-permission-calculator = { branch = "main", default-features = false, git = "https://github.com/twilight-rs/permission-calculator" }
 //! ```
 //!
 //! # Examples
@@ -60,12 +60,12 @@
 //!
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use rarity_permission_calculator::Calculator;
+//! use twilight_permission_calculator::{Calculator};
 //! use std::collections::HashMap;
 //! use twilight_model::{
 //!     channel::{
 //!         permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
-//!         ChannelType,
+//!         ChannelType
 //!     },
 //!     guild::Permissions,
 //!     id::{GuildId, RoleId, UserId},
@@ -117,11 +117,15 @@
 //! ```
 //!
 //! [`twilight-rs`]: https://github.com/twilight-rs/twilight
-//! [license badge]: https://img.shields.io/badge/license-ISC-blue.svg?style=flat-square
+//! [license badge]: https://img.shields.io/badge/license-ISC-blue.svg?style=for-the-badge
 //! [license link]: https://opensource.org/licenses/ISC
-//! [logo]: https://raw.githubusercontent.com/rarity-rs/assets/main/logo.png
-//! [rust badge]: https://img.shields.io/badge/rust-1.44.1+-93450a.svg?style=flat-square
+//! [logo]: https://raw.githubusercontent.com/twilight-rs/twilight/trunk/logo.png
+//! [rust badge]: https://img.shields.io/badge/rust-1.44.1+-93450a.svg?style=for-the-badge
 //! [rust link]: https://blog.rust-lang.org/2020/06/18/Rust.1.44.1.html
+//! [discord badge]: https://img.shields.io/discord/745809834183753828?color=%237289DA&label=discord%20server&logo=discord&style=for-the-badge
+//! [discord link]: https://discord.gg/7jj8n7D
+//! [github badge]: https://img.shields.io/badge/github-twilight-6f42c1.svg?style=for-the-badge&logo=github
+//! [github link]: https://github.com/twilight-rs/twilight
 
 #![doc(html_logo_url = "https://raw.githubusercontent.com/rarity-rs/assets/main/logo.png")]
 #![deny(
