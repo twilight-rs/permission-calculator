@@ -1,5 +1,4 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use twilight_permission_calculator::Calculator;
 use std::collections::HashMap;
 use twilight_model::{
     channel::{
@@ -9,6 +8,7 @@ use twilight_model::{
     guild::Permissions,
     id::{GuildId, RoleId, UserId},
 };
+use twilight_permission_calculator::Calculator;
 
 fn member_calculator_in_channel() {
     let guild_id = GuildId(1);
