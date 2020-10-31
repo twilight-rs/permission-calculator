@@ -18,7 +18,7 @@
 //!
 //! # Features
 //!
-//! The `log` dependency is optional and can be disabled if you don't want
+//! The `tracing` dependency is optional and can be disabled if you don't want
 //! logging. To do this, use this in your `Cargo.toml`:
 //!
 //! ```toml
