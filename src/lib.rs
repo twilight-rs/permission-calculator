@@ -13,7 +13,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! twilight-permission-calculator = { branch = "main", git = "https://github.com/twilight-rs/permission-calculator" }
+//! twilight-permission-calculator = { branch = "trunk", git = "https://github.com/twilight-rs/permission-calculator" }
 //! ```
 //!
 //! # Features
@@ -23,7 +23,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! twilight-permission-calculator = { branch = "main", default-features = false, git = "https://github.com/twilight-rs/permission-calculator" }
+//! twilight-permission-calculator = { branch = "trunk", default-features = false, git = "https://github.com/twilight-rs/permission-calculator" }
 //! ```
 //!
 //! # Examples
