@@ -9,6 +9,53 @@ use twilight_model::{
     id::{GuildId, RoleId, UserId},
 };
 
+/// Permissions associated with sending messages in a guild text channel.
+const PERMISSIONS_MESSAGING: Permissions = Permissions::from_bits_truncate(
+    Permissions::ATTACH_FILES.bits()
+        | Permissions::EMBED_LINKS.bits()
+        | Permissions::MENTION_EVERYONE.bits()
+        | Permissions::SEND_TTS_MESSAGES.bits(),
+);
+
+/// Permissions associated with a guild only at the root level (i.e. not channel
+/// related).
+const PERMISSIONS_ROOT: Permissions = Permissions::from_bits_truncate(
+    Permissions::ADMINISTRATOR.bits()
+        | Permissions::BAN_MEMBERS.bits()
+        | Permissions::CHANGE_NICKNAME.bits()
+        | Permissions::KICK_MEMBERS.bits()
+        | Permissions::MANAGE_EMOJIS.bits()
+        | Permissions::MANAGE_GUILD.bits()
+        | Permissions::MANAGE_NICKNAMES.bits()
+        | Permissions::VIEW_AUDIT_LOG.bits()
+        | Permissions::VIEW_GUILD_INSIGHTS.bits(),
+);
+
+/// Permissions associated with only guild text channels.
+const PERMISSIONS_TEXT: Permissions = Permissions::from_bits_truncate(
+    Permissions::ADD_REACTIONS.bits()
+        | Permissions::ATTACH_FILES.bits()
+        | Permissions::EMBED_LINKS.bits()
+        | Permissions::MANAGE_MESSAGES.bits()
+        | Permissions::MENTION_EVERYONE.bits()
+        | Permissions::READ_MESSAGE_HISTORY.bits()
+        | Permissions::SEND_MESSAGES.bits()
+        | Permissions::SEND_TTS_MESSAGES.bits()
+        | Permissions::USE_EXTERNAL_EMOJIS.bits(),
+);
+
+/// Permissions associated with only voice channels.
+const PERMISSIONS_VOICE: Permissions = Permissions::from_bits_truncate(
+    Permissions::CONNECT.bits()
+        | Permissions::DEAFEN_MEMBERS.bits()
+        | Permissions::MOVE_MEMBERS.bits()
+        | Permissions::MUTE_MEMBERS.bits()
+        | Permissions::PRIORITY_SPEAKER.bits()
+        | Permissions::SPEAK.bits()
+        | Permissions::STREAM.bits()
+        | Permissions::USE_VAD.bits(),
+);
+
 /// A calculator to calculate permissions of various things within in a guild.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use = "the calculator isn't useful if you don't calculate the permissions of something with it"]
@@ -292,14 +339,9 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
             && !member_allow.contains(Permissions::SEND_MESSAGES);
 
         if member_send_messages_denied || role_send_messages_denied {
-            let perms = Permissions::ATTACH_FILES
-                | Permissions::EMBED_LINKS
-                | Permissions::MENTION_EVERYONE
-                | Permissions::SEND_TTS_MESSAGES;
-
-            member_allow.remove(perms);
-            roles_allow.remove(perms);
-            permissions.remove(perms);
+            member_allow.remove(PERMISSIONS_MESSAGING);
+            roles_allow.remove(PERMISSIONS_MESSAGING);
+            permissions.remove(PERMISSIONS_MESSAGING);
         }
 
         permissions.remove(roles_deny);
@@ -309,46 +351,17 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
 
         // Remove permissions that can't be used in a channel, i.e. are relevant
         // to guild-level permission calculating.
-        permissions.remove(
-            Permissions::ADMINISTRATOR
-                | Permissions::BAN_MEMBERS
-                | Permissions::CHANGE_NICKNAME
-                | Permissions::KICK_MEMBERS
-                | Permissions::MANAGE_EMOJIS
-                | Permissions::MANAGE_GUILD
-                | Permissions::MANAGE_NICKNAMES
-                | Permissions::VIEW_AUDIT_LOG
-                | Permissions::VIEW_GUILD_INSIGHTS,
-        );
+        permissions.remove(PERMISSIONS_ROOT);
 
         // Now remove permissions that can't be used in text or voice channels
         // based on this channel's type. This handles category channels by
         // removing all text and voice permissions.
         if channel_type != ChannelType::GuildText {
-            permissions.remove(
-                Permissions::ADD_REACTIONS
-                    | Permissions::ATTACH_FILES
-                    | Permissions::EMBED_LINKS
-                    | Permissions::MANAGE_MESSAGES
-                    | Permissions::MENTION_EVERYONE
-                    | Permissions::READ_MESSAGE_HISTORY
-                    | Permissions::SEND_MESSAGES
-                    | Permissions::SEND_TTS_MESSAGES
-                    | Permissions::USE_EXTERNAL_EMOJIS,
-            );
+            permissions.remove(PERMISSIONS_TEXT);
         }
 
         if channel_type != ChannelType::GuildVoice {
-            permissions.remove(
-                Permissions::CONNECT
-                    | Permissions::DEAFEN_MEMBERS
-                    | Permissions::MOVE_MEMBERS
-                    | Permissions::MUTE_MEMBERS
-                    | Permissions::PRIORITY_SPEAKER
-                    | Permissions::SPEAK
-                    | Permissions::STREAM
-                    | Permissions::USE_VAD,
-            );
+            permissions.remove(PERMISSIONS_VOICE);
         }
 
         Ok(permissions)
