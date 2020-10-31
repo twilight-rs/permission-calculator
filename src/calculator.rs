@@ -87,6 +87,9 @@ impl<'a> Calculator<'a> {
     /// invalid. If this is `false`, then an error will return when an item is
     /// missing.
     ///
+    /// **Note** that this can be "dangerous", and can result in users "being
+    /// able" to do things when in reality they can't.
+    ///
     /// The default is `false`.
     pub fn continue_on_missing_items(mut self, continue_on_missing_items: bool) -> Self {
         self.continue_on_missing_items = continue_on_missing_items;
@@ -150,12 +153,13 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
     pub fn permissions(&self) -> Result<Permissions, Error> {
-        // The owner has all permissions.
+        // If the user is the owner, then we can just return all of the
+        // permissions.
         if self.user_id == self.guild_owner_id {
             return Ok(Permissions::all());
         }
 
-        // The permissions that everyone has is the baseline.
+        // The permissions that the @everyone role has is the baseline.
         let mut permissions = if let Some(permissions) = self.roles.get(&RoleId(self.guild_id.0)) {
             *permissions
         } else {
@@ -165,6 +169,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
                 "Everyone role not in guild",
             );
 
+            // If the user wants to continue on missing items, then
             if self.continue_on_missing_items {
                 Permissions::empty()
             } else {
@@ -331,6 +336,9 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
             return Ok(Permissions::empty());
         }
 
+        // If the member or any of their roles denies the Send Messages
+        // permission, then the rest of the messaging-related permissions can be
+        // removed.
         let role_send_messages_denied = roles_deny.contains(Permissions::SEND_MESSAGES)
             && !roles_allow.contains(Permissions::SEND_MESSAGES)
             && !roles_allow.contains(Permissions::SEND_MESSAGES);
