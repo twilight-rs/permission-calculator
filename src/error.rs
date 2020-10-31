@@ -13,16 +13,16 @@ use twilight_model::id::{GuildId, RoleId, UserId};
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum Error {
-    /// The guild's `@everyone` role was missing from the guild's role list.
+    /// `@everyone` role is missing from the guild's role list.
     EveryoneRoleMissing {
-        /// The ID of the guild and role.
+        /// ID of the guild and role.
         guild_id: GuildId,
     },
     /// One of the member's roles is missing from the guild's role list.
     MemberRoleMissing {
-        /// The ID of the missing role that the member has.
+        /// ID of the missing role that the member has.
         role_id: RoleId,
-        /// The ID of the user.
+        /// ID of the user.
         user_id: UserId,
     },
 }
@@ -31,7 +31,7 @@ impl Display for Error {
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         match self {
             Self::EveryoneRoleMissing { guild_id } => f.write_fmt(format_args!(
-                "the @everyone role is missing for guild {}",
+                "@everyone role is missing for guild {}",
                 guild_id
             )),
             Self::MemberRoleMissing { role_id, user_id } => f.write_fmt(format_args!(

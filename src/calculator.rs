@@ -56,7 +56,7 @@ const PERMISSIONS_VOICE: Permissions = Permissions::from_bits_truncate(
         | Permissions::USE_VAD.bits(),
 );
 
-/// A calculator to calculate permissions of various things within in a guild.
+/// Calculate permissions of various things within in a guild.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use = "the calculator isn't useful if you don't calculate the permissions of something with it"]
 pub struct Calculator<'a> {
@@ -90,7 +90,7 @@ impl<'a> Calculator<'a> {
     /// **Note** that this can be "dangerous", and can result in users "being
     /// able" to do things when in reality they can't.
     ///
-    /// The default is `false`.
+    /// Default is `false`.
     pub fn continue_on_missing_items(mut self, continue_on_missing_items: bool) -> Self {
         self.continue_on_missing_items = continue_on_missing_items;
 
