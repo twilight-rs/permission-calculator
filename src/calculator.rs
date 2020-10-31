@@ -205,7 +205,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
                 return Ok(Permissions::all());
             }
 
-            permissions |= role_permissions;
+            permissions.insert(role_permissions);
         }
 
         Ok(permissions)
