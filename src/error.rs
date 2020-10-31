@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn test_display() {
         assert_eq!(
-            "the @everyone role is missing for guild 123",
+            "@everyone role is missing for guild 123",
             Error::EveryoneRoleMissing {
                 guild_id: GuildId(123)
             }
