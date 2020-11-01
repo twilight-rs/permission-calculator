@@ -134,7 +134,7 @@ impl<'a> MemberCalculator<'a> {
     /// This should be used if you don't want to manually take the user ID and
     /// owner ID in account beforehand.
     pub fn owner_id(mut self, owner_id: UserId) -> Self {
-        self.owner_id = self.owner_id.replace(owner_id);
+        self.owner_id.replace(owner_id);
 
         self
     }
@@ -391,6 +391,17 @@ mod tests {
             }
             .to_string(),
         );
+    }
+
+    #[test]
+    fn test_owner_is_admin() {
+        let guild_id = GuildId(1);
+        let user_id = UserId(2);
+        let member_roles = &[&(RoleId(1), Permissions::SEND_MESSAGES)];
+
+        let calculator = MemberCalculator::new(guild_id, user_id, member_roles).owner_id(user_id);
+
+        assert_eq!(Permissions::all(), calculator.root().unwrap());
     }
 
     // Test that a permission overwrite denying the "View Channel" permission
