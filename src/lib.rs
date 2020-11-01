@@ -485,9 +485,79 @@ impl<'a> Calculator<'a> {
     }
 }
 
+/// Dangerous infallible calculator to calculate the permissions of a member.
+///
+/// **Note that using this is dangerous, as it may allow your application to
+/// think a member has a permission when in reality they don't, or vice versa.**
+///
+/// This is a variant of the [`Calculator`] which will ignore when expected
+/// items are missing, such as the `@everyone` role information missing.
+///
+/// Refer to [`Calculator`] for additional information.
+///
+/// [`Calculator`]: struct.Calculator.html
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[must_use = "the member calculator isn't useful if you don't calculate permissions"]
+pub struct InfallibleCalculator<'a>(Calculator<'a>);
+
+impl<'a> InfallibleCalculator<'a> {
+    /// Create an infallible calculator to calculate the permissions of a
+    /// member.
+    pub fn new(
+        guild_id: GuildId,
+        user_id: UserId,
+        member_roles: &'a [&'a (RoleId, Permissions)],
+    ) -> Self {
+        let mut inner = Calculator::new(guild_id, user_id, member_roles);
+        inner.continue_on_missing_items = true;
+
+        Self(inner)
+    }
+
+    /// Configure the ID of the owner of the guild.
+    ///
+    /// Refer to the documentation for [`Calculator::owner_id`].
+    ///
+    /// [`Calculator::owner_id`]: struct.Calculator.html#method.owner_id
+    pub fn owner_id(mut self, owner_id: UserId) -> Self {
+        self.0 = self.0.owner_id(owner_id);
+
+        self
+    }
+
+    /// Calculate the guild-level permissions of a member without handling
+    /// errors.
+    ///
+    /// Refer to [`Calculator::root`] for more information.
+    ///
+    /// [`Calculator::root`]: struct.Calculator.html#method.root
+    pub fn root(&self) -> Permissions {
+        self.0
+            .root()
+            .expect("inner fallible calculator is configured to ignore errors")
+    }
+
+    /// Calculate the permissions of the member in a channel without handling
+    /// errors, taking into account a combination of the guild-level permissions
+    /// and channel-level permissions.
+    ///
+    /// Refer to [`Calculator::in_channel`] for more information.
+    ///
+    /// [`Calculator::in_channel`]: struct.Calculator.html#method.root
+    pub fn in_channel<'b, U: IntoIterator<Item = &'b PermissionOverwrite> + Clone>(
+        self,
+        channel_type: ChannelType,
+        channel_overwrites: U,
+    ) -> Permissions {
+        self.0
+            .in_channel(channel_type, channel_overwrites)
+            .expect("inner fallible calculator is configured to ignore errors")
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Calculator, CalculatorError, GuildId, RoleId, UserId};
+    use super::{Calculator, CalculatorError, GuildId, InfallibleCalculator, RoleId, UserId};
     use static_assertions::{assert_fields, assert_impl_all, assert_obj_safe};
     use std::{
         error::Error,
@@ -514,6 +584,7 @@ mod tests {
     );
     assert_impl_all!(Calculator<'_>: Clone, Debug, Eq, PartialEq, Send, Sync);
     assert_obj_safe!(CalculatorError, Calculator<'_>);
+    assert_impl_all!(InfallibleCalculator<'_>: Clone, Debug, Eq, PartialEq, Send, Sync);
 
     #[test]
     fn test_error_display() {
@@ -638,5 +709,22 @@ mod tests {
             .unwrap();
 
         assert_eq!(calculated, Permissions::MANAGE_MESSAGES);
+    }
+
+    #[test]
+    fn test_infallible_calculator() {
+        let calc = InfallibleCalculator::new(GuildId(1), UserId(2), &[]);
+        assert!(calc.root().is_empty());
+        // Intentionally leave the `@everyone` role missing.
+        let perms = calc.in_channel(
+            ChannelType::GuildText,
+            &[PermissionOverwrite {
+                allow: Permissions::SEND_MESSAGES,
+                deny: Permissions::SEND_TTS_MESSAGES,
+                kind: PermissionOverwriteType::Member(UserId(2)),
+            }],
+        );
+
+        assert_eq!(Permissions::SEND_MESSAGES, perms);
     }
 }
