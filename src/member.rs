@@ -1,5 +1,8 @@
-use crate::error::Error;
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    error::Error,
+    fmt::{Display, Formatter, Result as FmtResult},
+};
 use twilight_model::{
     channel::{
         permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
@@ -56,82 +59,45 @@ const PERMISSIONS_VOICE: Permissions = Permissions::from_bits_truncate(
         | Permissions::USE_VAD.bits(),
 );
 
-/// Calculate permissions of various things within in a guild.
+/// Error type for all calculator errors.
+///
+/// This will only return if [`Calculator::continue_on_missing_items`] wasn't
+/// enabled.
+///
+/// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[must_use = "the calculator isn't useful if you don't calculate the permissions of something with it"]
-pub struct Calculator<'a> {
-    continue_on_missing_items: bool,
-    id: GuildId,
-    owner_id: UserId,
-    roles: &'a HashMap<RoleId, Permissions>,
-}
-
-impl<'a> Calculator<'a> {
-    /// Create a new permission calculator for a guild.
-    ///
-    /// Use the methods on this calculator to create new, more specific
-    /// calculators.
-    pub fn new(id: GuildId, owner_id: UserId, roles: &'a HashMap<RoleId, Permissions>) -> Self {
-        Self {
-            continue_on_missing_items: false,
-            id,
-            owner_id,
-            roles,
-        }
-    }
-
-    /// Whether to continue when items are missing from the cache, such as when
-    /// a user has a certain role but that role doesn't exist.
-    ///
-    /// If this is `true`, then the calculated permissions may be incomplete or
-    /// invalid. If this is `false`, then an error will return when an item is
-    /// missing.
-    ///
-    /// **Note** that this can be "dangerous", and can result in users "being
-    /// able" to do things when in reality they can't.
-    ///
-    /// Default is `false`.
-    pub fn continue_on_missing_items(mut self, continue_on_missing_items: bool) -> Self {
-        self.continue_on_missing_items = continue_on_missing_items;
-
-        self
-    }
-
-    /// Create a calculator to calculate the permissions of a member.
-    ///
-    /// Using the returned member calculator, you can calculate the permissions
-    /// of the member [across the guild][`permissions`] or
-    /// [in a specified channel][`in_channel`].
-    ///
-    /// [`in_channel`]: struct.MemberCalculator.html#method.in_channel
-    /// [`permissions`]: struct.MemberCalculator.html#method.permissions
-    pub fn member<T: IntoIterator<Item = &'a RoleId> + Clone>(
-        self,
+#[non_exhaustive]
+pub enum MemberCalculatorError {
+    /// `@everyone` role is missing from the guild's role list.
+    EveryoneRoleMissing {
+        /// ID of the guild and role.
+        guild_id: GuildId,
+    },
+    /// One of the member's roles is missing from the guild's role list.
+    MemberRoleMissing {
+        /// ID of the missing role that the member has.
+        role_id: RoleId,
+        /// ID of the user.
         user_id: UserId,
-        member_role_ids: T,
-    ) -> MemberCalculator<'a, T> {
-        MemberCalculator {
-            continue_on_missing_items: self.continue_on_missing_items,
-            guild_id: self.id,
-            guild_owner_id: self.owner_id,
-            member_role_ids,
-            roles: self.roles,
-            user_id,
-        }
-    }
+    },
+}
 
-    /// Create a calculator to calculate the permissions of a role.
-    ///
-    /// Using the returned role calculator, you can calculate the permissions of
-    /// the role [in a specified channel][`in_channel`].
-    ///
-    /// [`in_channel`]: struct.RoleCalculator.html#method.in_channel
-    pub fn role(self, role_root_permissions: Permissions) -> RoleCalculator {
-        RoleCalculator {
-            permissions: role_root_permissions,
+impl Display for MemberCalculatorError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        match self {
+            Self::EveryoneRoleMissing { guild_id } => f.write_fmt(format_args!(
+                "@everyone role is missing for guild {}",
+                guild_id
+            )),
+            Self::MemberRoleMissing { role_id, user_id } => f.write_fmt(format_args!(
+                "member {} is missing role {}",
+                user_id, role_id
+            )),
         }
     }
 }
+
+impl Error for MemberCalculatorError {}
 
 /// Calculate the permissions of a member.
 ///
@@ -147,27 +113,61 @@ impl<'a> Calculator<'a> {
 pub struct MemberCalculator<'a, T> {
     continue_on_missing_items: bool,
     guild_id: GuildId,
-    guild_owner_id: UserId,
+    owner_id: Option<UserId>,
     member_role_ids: T,
     roles: &'a HashMap<RoleId, Permissions>,
     user_id: UserId,
 }
 
 impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
+    /// Create a calculator to calculate the permissions of a member.
+    ///
+    /// Using the returned member calculator, you can calculate the permissions
+    /// of the member [across the guild][`permissions`] or
+    /// [in a specified channel][`in_channel`].
+    ///
+    /// [`in_channel`]: struct.MemberCalculator.html#method.in_channel
+    /// [`permissions`]: struct.MemberCalculator.html#method.permissions
+    pub fn new(
+        guild_id: GuildId,
+        user_id: UserId,
+        roles: &'a HashMap<RoleId, Permissions>,
+        member_role_ids: T,
+    ) -> Self {
+        Self {
+            continue_on_missing_items: false,
+            guild_id,
+            owner_id: None,
+            member_role_ids,
+            roles,
+            user_id,
+        }
+    }
+
+    /// Configure the ID of the owner of the guild.
+    ///
+    /// This should be used if you don't want to manually take the user ID and
+    /// owner ID in account beforehand.
+    pub fn owner_id(mut self, owner_id: UserId) -> Self {
+        self.owner_id = self.owner_id.replace(owner_id);
+
+        self
+    }
+
     /// Calculate the guild-level permissions of a member.
     ///
     /// # Errors
     ///
     /// If [`Calculator::continue_on_missing_items`] wasn't enabled, then this
-    /// returns [`Error::EveryoneRoleMissing`] if the `@everyone` role with the
+    /// returns [`MemberCalculatorError::EveryoneRoleMissing`] if the `@everyone` role with the
     /// same ID as the guild wasn't found in the given guild roles map.
     ///
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
-    /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
-    pub fn root(&self) -> Result<Permissions, Error> {
+    /// [`MemberCalculatorError::EveryoneRoleMissing`]: enum.MemberCalculatorError.html#method.EveryoneRoleMissing
+    pub fn root(&self) -> Result<Permissions, MemberCalculatorError> {
         // If the user is the owner, then we can just return all of the
         // permissions.
-        if self.user_id == self.guild_owner_id {
+        if matches!(self.owner_id, Some(id) if id == self.user_id) {
             return Ok(Permissions::all());
         }
 
@@ -185,7 +185,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
             if self.continue_on_missing_items {
                 Permissions::empty()
             } else {
-                return Err(Error::EveryoneRoleMissing {
+                return Err(MemberCalculatorError::EveryoneRoleMissing {
                     guild_id: self.guild_id,
                 });
             }
@@ -206,7 +206,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
                 if self.continue_on_missing_items {
                     continue;
                 } else {
-                    return Err(Error::MemberRoleMissing {
+                    return Err(MemberCalculatorError::MemberRoleMissing {
                         role_id: *role_id,
                         user_id: self.user_id,
                     });
@@ -299,7 +299,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         self,
         channel_type: ChannelType,
         channel_overwrites: U,
-    ) -> Result<Permissions, Error> {
+    ) -> Result<Permissions, MemberCalculatorError> {
         let mut permissions = self.root()?;
 
         // Hierarchy documentation:
@@ -388,43 +388,15 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     }
 }
 
-/// Calculate the permissions of a role.
-///
-/// Created via the [`Calculator::role`] method.
-///
-/// Using the role calculator, you can calculate the role's permissions in a
-/// given channel via [`in_channel`].
-///
-/// [`Calculator::role`]: struct.Calculator.html#method.role
-/// [`in_channel`]: #method.in_channel
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[must_use = "the role calculator isn't useful if you don't calculate permissions"]
-pub struct RoleCalculator {
-    permissions: Permissions,
-}
-
-impl RoleCalculator {
-    /// Calculate the permissions of the role in the given channel.
-    pub fn in_channel(
-        mut self,
-        permission_overwrite: PermissionOverwrite,
-    ) -> Result<Permissions, Error> {
-        if !matches!(permission_overwrite.kind, PermissionOverwriteType::Role(_)) {
-            return Err(Error::PermissionOverwriteNotRole);
-        }
-
-        self.permissions.remove(permission_overwrite.deny);
-        self.permissions.insert(permission_overwrite.allow);
-
-        Ok(self.permissions)
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{Calculator, GuildId, MemberCalculator, RoleId, UserId};
-    use static_assertions::{assert_impl_all, assert_obj_safe};
-    use std::{collections::HashMap, fmt::Debug};
+    use super::{GuildId, MemberCalculator, MemberCalculatorError, RoleId, UserId};
+    use static_assertions::{assert_fields, assert_impl_all, assert_obj_safe};
+    use std::{
+        collections::HashMap,
+        error::Error,
+        fmt::{Debug, Display},
+    };
     use twilight_model::{
         channel::{
             permission_overwrite::{PermissionOverwrite, PermissionOverwriteType},
@@ -433,34 +405,62 @@ mod tests {
         guild::Permissions,
     };
 
-    assert_impl_all!(Calculator<'static>: Clone, Debug, Eq, PartialEq, Send, Sync);
+    assert_fields!(MemberCalculatorError::EveryoneRoleMissing: guild_id);
+    assert_fields!(MemberCalculatorError::MemberRoleMissing: role_id, user_id);
+    assert_impl_all!(
+        MemberCalculatorError: Clone,
+        Debug,
+        Display,
+        Error,
+        Eq,
+        PartialEq,
+        Send,
+        Sync
+    );
     assert_impl_all!(MemberCalculator<'static, &[RoleId]>: Clone, Debug, Eq, PartialEq, Send, Sync);
-    assert_obj_safe!(Calculator<'_>, MemberCalculator<'_, &[RoleId]>);
+    assert_obj_safe!(MemberCalculatorError, MemberCalculator<'_, &[RoleId]>);
+
+    #[test]
+    fn test_error_display() {
+        assert_eq!(
+            "@everyone role is missing for guild 123",
+            MemberCalculatorError::EveryoneRoleMissing {
+                guild_id: GuildId(123)
+            }
+            .to_string(),
+        );
+        assert_eq!(
+            "member 123 is missing role 456",
+            MemberCalculatorError::MemberRoleMissing {
+                role_id: RoleId(456),
+                user_id: UserId(123)
+            }
+            .to_string(),
+        );
+    }
 
     // Test that a permission overwrite denying the "View Channel" permission
     // implicitly denies all other permissions.
     #[test]
     fn test_view_channel_deny_implicit() {
         let guild_id = GuildId(1);
-        let guild_owner_id = UserId(2);
-        let user_id = UserId(3);
-        let member_roles = &[RoleId(4)];
+        let user_id = UserId(2);
+        let member_roles = &[RoleId(3)];
         let mut roles = HashMap::with_capacity(1);
         roles.insert(
             RoleId(1),
             Permissions::SEND_MESSAGES | Permissions::MENTION_EVERYONE,
         );
-        roles.insert(RoleId(4), Permissions::empty());
+        roles.insert(RoleId(3), Permissions::empty());
 
         // First, test when it's denied for an overwrite on a role the user has.
         let overwrites = &[PermissionOverwrite {
             allow: Permissions::SEND_TTS_MESSAGES,
             deny: Permissions::VIEW_CHANNEL,
-            kind: PermissionOverwriteType::Role(RoleId(4)),
+            kind: PermissionOverwriteType::Role(RoleId(3)),
         }];
 
-        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
-            .member(user_id, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
             .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
@@ -470,11 +470,10 @@ mod tests {
         let overwrites = &[PermissionOverwrite {
             allow: Permissions::SEND_TTS_MESSAGES,
             deny: Permissions::VIEW_CHANNEL,
-            kind: PermissionOverwriteType::Member(UserId(3)),
+            kind: PermissionOverwriteType::Member(UserId(2)),
         }];
 
-        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
-            .member(user_id, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
             .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
@@ -484,15 +483,13 @@ mod tests {
     #[test]
     fn test_remove_text_perms_when_voice() {
         let guild_id = GuildId(1);
-        let guild_owner_id = UserId(2);
-        let user_id = UserId(3);
-        let member_roles = &[RoleId(4)];
+        let user_id = UserId(2);
+        let member_roles = &[RoleId(3)];
         let mut roles = HashMap::with_capacity(1);
         roles.insert(RoleId(1), Permissions::CONNECT);
-        roles.insert(RoleId(4), Permissions::SEND_MESSAGES);
+        roles.insert(RoleId(3), Permissions::SEND_MESSAGES);
 
-        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
-            .member(user_id, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
             .in_channel(ChannelType::GuildVoice, &[])
             .unwrap();
 
@@ -502,15 +499,13 @@ mod tests {
     #[test]
     fn test_remove_voice_perms_when_text() {
         let guild_id = GuildId(1);
-        let guild_owner_id = UserId(2);
-        let user_id = UserId(3);
-        let member_roles = &[RoleId(4)];
+        let user_id = UserId(2);
+        let member_roles = &[RoleId(3)];
         let mut roles = HashMap::with_capacity(1);
         roles.insert(RoleId(1), Permissions::CONNECT);
-        roles.insert(RoleId(4), Permissions::SEND_MESSAGES);
+        roles.insert(RoleId(3), Permissions::SEND_MESSAGES);
 
-        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
-            .member(user_id, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
             .in_channel(ChannelType::GuildText, &[])
             .unwrap();
 
@@ -522,25 +517,23 @@ mod tests {
     #[test]
     fn test_deny_send_messages_removes_related() {
         let guild_id = GuildId(1);
-        let guild_owner_id = UserId(2);
-        let user_id = UserId(3);
-        let member_roles = &[RoleId(4)];
+        let user_id = UserId(2);
+        let member_roles = &[RoleId(3)];
         let mut roles = HashMap::with_capacity(1);
         roles.insert(
             RoleId(1),
             Permissions::MANAGE_MESSAGES | Permissions::EMBED_LINKS | Permissions::MENTION_EVERYONE,
         );
-        roles.insert(RoleId(4), Permissions::empty());
+        roles.insert(RoleId(3), Permissions::empty());
 
         // First, test when it's denied for an overwrite on a role the user has.
         let overwrites = &[PermissionOverwrite {
             allow: Permissions::ATTACH_FILES,
             deny: Permissions::SEND_MESSAGES,
-            kind: PermissionOverwriteType::Role(RoleId(4)),
+            kind: PermissionOverwriteType::Role(RoleId(3)),
         }];
 
-        let calculated = Calculator::new(guild_id, guild_owner_id, &roles)
-            .member(user_id, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
             .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
