@@ -164,7 +164,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     ///
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
-    pub fn permissions(&self) -> Result<Permissions, Error> {
+    pub fn root(&self) -> Result<Permissions, Error> {
         // If the user is the owner, then we can just return all of the
         // permissions.
         if self.user_id == self.guild_owner_id {
@@ -300,7 +300,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         channel_type: ChannelType,
         channel_overwrites: U,
     ) -> Result<Permissions, Error> {
-        let mut permissions = self.permissions()?;
+        let mut permissions = self.root()?;
 
         // Hierarchy documentation:
         // <https://discord.com/developers/docs/topics/permissions#permission-overwrites>
