@@ -32,34 +32,30 @@ twilight-permission-calculator = { branch = "trunk", default-features = false, g
 
 ## Calculating member permissions in a channel
 
-Take a scenario where a guild with two members that are important here:
-the owner and the normal user. There are 3 roles: the `@everyone` role
-(with the same ID as the guild) that grants the View Channel permission
-across the whole guild, role ID 4 that grants the Manage Roles permission
-across the whole guild, and role ID 5 that grants the Send Messages
-permission.
+Take a scenario where a member has two roles: the `@everyone` role (with the
+same ID as the guild) that grants the View Channel permission across the
+whole guild, and a second role that grants the Send Messages permission
+across the whole guild. This means that, across the server, the member will
+have the View Channel and Send Messages permissions, unless denied or
+expanded by channel-specific permission overwrites.
 
-The normal user has, of course, the `@everyone` role, and additionally role
-ID 3. This means that, across the server, the user will have the View
-Channel and Send Messages permissions.
+In a given channel, there are two permission overwrites: one for the
+`@everyone` role and one for the member itself. These overwrites look
+like:
 
-In a given channel, there are two permission overwrites:
+- `@everyone` role is allowed the Embed Links and Add Reactions permissions;
+- Member is denied the Send Messages permission.
 
-- role ID 1 is not overwritten
-- role ID 3 is allowed the Manage Messages permission, but is denied the
-Send Messages permission
-
-Taking into account the View Channel permission granted to the `@everyone`
-role across the guild, the Send Messages permission granted across the guild
-to those with role ID 5 (which the user has), and that role ID 5 is allowed
-Manage Messages but is denied Send Messages in the channel, the user will
-have the View Channel and Manage Messages permission.
+Taking into account the guild root-level permissions and the permission
+overwrites, the end result is that in the specified channel the user has
+the View Channel, Embed Links, and Add Reactions permission, but is denied
+the Send Messages permission that their second role was granted on a root
+level.
 
 Let's see that in code:
 
 ```rust
 use twilight_permission_calculator::Calculator;
-use std::collections::HashMap;
 use twilight_model::{
     channel::{
         permission_overwrite::{PermissionOverwriteType, PermissionOverwrite},
@@ -70,26 +66,29 @@ use twilight_model::{
 };
 
 let guild_id = GuildId(1);
-let user_id = UserId(4);
+let user_id = UserId(3);
 let member_roles = &[
     // Guild-level @everyone role that, by default, allows everyone to view
     // channels.
     &(RoleId(1), Permissions::VIEW_CHANNEL),
-    // Guild-level permission that grants everyone the Send Messages
-    // permission by default.
-    &(RoleId(3), Permissions::SEND_MESSAGES),
+    // Guild-level permission that grants members with the role the Send
+    // Messages permission.
+    &(RoleId(2), Permissions::SEND_MESSAGES),
 ];
 
 let channel_overwrites = &[
+    // All members are given the Add Reactions and Embed Links members via
+    // the `@everyone` role.
     PermissionOverwrite {
-        allow: Permissions::SEND_TTS_MESSAGES,
+        allow: Permissions::ADD_REACTIONS | Permissions::EMBED_LINKS,
         deny: Permissions::empty(),
-        kind: PermissionOverwriteType::Role(RoleId(2)),
+        kind: PermissionOverwriteType::Role(RoleId(1)),
     },
+    // Member is denied the Send Messages permission.
     PermissionOverwrite {
-        allow: Permissions::MANAGE_MESSAGES,
+        allow: Permissions::empty(),
         deny: Permissions::SEND_MESSAGES,
-        kind: PermissionOverwriteType::Role(RoleId(3)),
+        kind: PermissionOverwriteType::Member(user_id),
     },
 ];
 
@@ -98,12 +97,14 @@ let calculated_permissions = Calculator::new(guild_id, user_id, member_roles)
 
 // Now that we've got the member's permissions in the channel, we can
 // check that they have the server-wide View Channel permission and
-// the Manage Messages permission granted to the role in the channel,
-// but their guild-wide Send Messages permission was denied:
+// the Add Reactions permission granted, but their guild-wide Send Messages
+// permission was denied. Additionally, since the user can't send messages,
+// their Embed Links permission was removed.
 
-let expected = Permissions::MANAGE_MESSAGES | Permissions::VIEW_CHANNEL;
-assert_eq!(expected, calculated_permissions);
+let expected = Permissions::ADD_REACTIONS | Permissions::VIEW_CHANNEL;
+assert!(!calculated_permissions.contains(Permissions::EMBED_LINKS));
 assert!(!calculated_permissions.contains(Permissions::SEND_MESSAGES));
+assert_eq!(expected, calculated_permissions);
 ```
 
 [`twilight-rs`]: https://github.com/twilight-rs/twilight
