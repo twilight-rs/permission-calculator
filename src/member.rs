@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     error::Error,
     fmt::{Display, Formatter, Result as FmtResult},
 };
@@ -73,13 +72,6 @@ pub enum MemberCalculatorError {
         /// ID of the guild and role.
         guild_id: GuildId,
     },
-    /// One of the member's roles is missing from the guild's role list.
-    MemberRoleMissing {
-        /// ID of the missing role that the member has.
-        role_id: RoleId,
-        /// ID of the user.
-        user_id: UserId,
-    },
 }
 
 impl Display for MemberCalculatorError {
@@ -88,10 +80,6 @@ impl Display for MemberCalculatorError {
             Self::EveryoneRoleMissing { guild_id } => f.write_fmt(format_args!(
                 "@everyone role is missing for guild {}",
                 guild_id
-            )),
-            Self::MemberRoleMissing { role_id, user_id } => f.write_fmt(format_args!(
-                "member {} is missing role {}",
-                user_id, role_id
             )),
         }
     }
@@ -110,16 +98,15 @@ impl Error for MemberCalculatorError {}
 /// [`in_channel`]: #method.in_channel
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[must_use = "the member calculator isn't useful if you don't calculate permissions"]
-pub struct MemberCalculator<'a, T> {
+pub struct MemberCalculator<'a> {
     continue_on_missing_items: bool,
     guild_id: GuildId,
+    member_roles: &'a [&'a (RoleId, Permissions)],
     owner_id: Option<UserId>,
-    member_role_ids: T,
-    roles: &'a HashMap<RoleId, Permissions>,
     user_id: UserId,
 }
 
-impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
+impl<'a> MemberCalculator<'a> {
     /// Create a calculator to calculate the permissions of a member.
     ///
     /// Using the returned member calculator, you can calculate the permissions
@@ -131,15 +118,13 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     pub fn new(
         guild_id: GuildId,
         user_id: UserId,
-        roles: &'a HashMap<RoleId, Permissions>,
-        member_role_ids: T,
+        member_roles: &'a [&'a (RoleId, Permissions)],
     ) -> Self {
         Self {
             continue_on_missing_items: false,
             guild_id,
             owner_id: None,
-            member_role_ids,
-            roles,
+            member_roles,
             user_id,
         }
     }
@@ -172,8 +157,12 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         }
 
         // The permissions that the @everyone role has is the baseline.
-        let mut permissions = if let Some(permissions) = self.roles.get(&RoleId(self.guild_id.0)) {
-            *permissions
+        let mut permissions = if let Some(permissions) = self
+            .member_roles
+            .iter()
+            .find(|role| (role.0).0 == self.guild_id.0)
+        {
+            permissions.1
         } else {
             #[cfg(feature = "tracing")]
             tracing::debug!(
@@ -192,32 +181,12 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         };
 
         // Permissions on a user's roles are simply additive.
-        for role_id in self.member_role_ids.clone() {
-            let role_permissions = if let Some(role) = self.roles.get(&role_id) {
-                *role
-            } else {
-                #[cfg(feature = "tracing")]
-                tracing::debug!(
-                    role_id = %role_id,
-                    user_id = %self.user_id,
-                    "User has role but it was not provided",
-                );
-
-                if self.continue_on_missing_items {
-                    continue;
-                } else {
-                    return Err(MemberCalculatorError::MemberRoleMissing {
-                        role_id: *role_id,
-                        user_id: self.user_id,
-                    });
-                }
-            };
-
+        for (_, role_permissions) in self.member_roles.iter() {
             if permissions.contains(Permissions::ADMINISTRATOR) {
                 return Ok(Permissions::all());
             }
 
-            permissions.insert(role_permissions);
+            permissions.insert(*role_permissions);
         }
 
         Ok(permissions)
@@ -287,15 +256,10 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
     /// returns [`Error::EveryoneRoleMissing`] if the `@everyone` role with the
     /// same ID as the guild wasn't found in the given guild roles map.
     ///
-    /// If [`Calculator::continue_on_missing_items`] wasn't enabled, then this
-    /// returns [`Error::MemberRoleMissing`] if one of the specified user's
-    /// guild roles was missing.
-    ///
     /// [`Calculator::continue_on_missing_items`]: struct.Calculator.html#method.continue_on_missing_items
     /// [`Error::EveryoneRoleMissing`]: enum.Error.html#method.EveryoneRoleMissing
-    /// [`Error::MemberRoleMissing`]: enum.Error.html#method.MemberRoleMissing
     /// [`permissions`]: #method.permissions
-    pub fn in_channel<U: IntoIterator<Item = &'a PermissionOverwrite> + Clone>(
+    pub fn in_channel<'b, U: IntoIterator<Item = &'b PermissionOverwrite> + Clone>(
         self,
         channel_type: ChannelType,
         channel_overwrites: U,
@@ -322,7 +286,7 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
                         continue;
                     }
 
-                    if !self.member_role_ids.clone().into_iter().any(|r| *r == role) {
+                    if !self.member_roles.iter().any(|(id, _)| *id == role) {
                         continue;
                     }
 
@@ -393,7 +357,6 @@ mod tests {
     use super::{GuildId, MemberCalculator, MemberCalculatorError, RoleId, UserId};
     use static_assertions::{assert_fields, assert_impl_all, assert_obj_safe};
     use std::{
-        collections::HashMap,
         error::Error,
         fmt::{Debug, Display},
     };
@@ -406,7 +369,6 @@ mod tests {
     };
 
     assert_fields!(MemberCalculatorError::EveryoneRoleMissing: guild_id);
-    assert_fields!(MemberCalculatorError::MemberRoleMissing: role_id, user_id);
     assert_impl_all!(
         MemberCalculatorError: Clone,
         Debug,
@@ -417,8 +379,8 @@ mod tests {
         Send,
         Sync
     );
-    assert_impl_all!(MemberCalculator<'static, &[RoleId]>: Clone, Debug, Eq, PartialEq, Send, Sync);
-    assert_obj_safe!(MemberCalculatorError, MemberCalculator<'_, &[RoleId]>);
+    assert_impl_all!(MemberCalculator<'_>: Clone, Debug, Eq, PartialEq, Send, Sync);
+    assert_obj_safe!(MemberCalculatorError, MemberCalculator<'_>);
 
     #[test]
     fn test_error_display() {
@@ -426,14 +388,6 @@ mod tests {
             "@everyone role is missing for guild 123",
             MemberCalculatorError::EveryoneRoleMissing {
                 guild_id: GuildId(123)
-            }
-            .to_string(),
-        );
-        assert_eq!(
-            "member 123 is missing role 456",
-            MemberCalculatorError::MemberRoleMissing {
-                role_id: RoleId(456),
-                user_id: UserId(123)
             }
             .to_string(),
         );
@@ -445,13 +399,13 @@ mod tests {
     fn test_view_channel_deny_implicit() {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
-        let member_roles = &[RoleId(3)];
-        let mut roles = HashMap::with_capacity(1);
-        roles.insert(
-            RoleId(1),
-            Permissions::SEND_MESSAGES | Permissions::MENTION_EVERYONE,
-        );
-        roles.insert(RoleId(3), Permissions::empty());
+        let member_roles = &[
+            &(
+                RoleId(1),
+                Permissions::MENTION_EVERYONE | Permissions::SEND_MESSAGES,
+            ),
+            &(RoleId(3), Permissions::empty()),
+        ];
 
         // First, test when it's denied for an overwrite on a role the user has.
         let overwrites = &[PermissionOverwrite {
@@ -460,7 +414,7 @@ mod tests {
             kind: PermissionOverwriteType::Role(RoleId(3)),
         }];
 
-        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, member_roles)
             .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
@@ -473,7 +427,7 @@ mod tests {
             kind: PermissionOverwriteType::Member(UserId(2)),
         }];
 
-        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, member_roles)
             .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
@@ -484,12 +438,12 @@ mod tests {
     fn test_remove_text_perms_when_voice() {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
-        let member_roles = &[RoleId(3)];
-        let mut roles = HashMap::with_capacity(1);
-        roles.insert(RoleId(1), Permissions::CONNECT);
-        roles.insert(RoleId(3), Permissions::SEND_MESSAGES);
+        let member_roles = &[
+            &(RoleId(1), Permissions::CONNECT),
+            &(RoleId(3), Permissions::SEND_MESSAGES),
+        ];
 
-        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, member_roles)
             .in_channel(ChannelType::GuildVoice, &[])
             .unwrap();
 
@@ -500,12 +454,12 @@ mod tests {
     fn test_remove_voice_perms_when_text() {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
-        let member_roles = &[RoleId(3)];
-        let mut roles = HashMap::with_capacity(1);
-        roles.insert(RoleId(1), Permissions::CONNECT);
-        roles.insert(RoleId(3), Permissions::SEND_MESSAGES);
+        let member_roles = &[
+            &(RoleId(1), Permissions::CONNECT),
+            &(RoleId(3), Permissions::SEND_MESSAGES),
+        ];
 
-        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, member_roles)
             .in_channel(ChannelType::GuildText, &[])
             .unwrap();
 
@@ -518,13 +472,15 @@ mod tests {
     fn test_deny_send_messages_removes_related() {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
-        let member_roles = &[RoleId(3)];
-        let mut roles = HashMap::with_capacity(1);
-        roles.insert(
-            RoleId(1),
-            Permissions::MANAGE_MESSAGES | Permissions::EMBED_LINKS | Permissions::MENTION_EVERYONE,
-        );
-        roles.insert(RoleId(3), Permissions::empty());
+        let member_roles = &[
+            &(
+                RoleId(1),
+                Permissions::MANAGE_MESSAGES
+                    | Permissions::EMBED_LINKS
+                    | Permissions::MENTION_EVERYONE,
+            ),
+            &(RoleId(3), Permissions::empty()),
+        ];
 
         // First, test when it's denied for an overwrite on a role the user has.
         let overwrites = &[PermissionOverwrite {
@@ -533,7 +489,7 @@ mod tests {
             kind: PermissionOverwriteType::Role(RoleId(3)),
         }];
 
-        let calculated = MemberCalculator::new(guild_id, user_id, &roles, member_roles)
+        let calculated = MemberCalculator::new(guild_id, user_id, member_roles)
             .in_channel(ChannelType::GuildText, overwrites)
             .unwrap();
 
