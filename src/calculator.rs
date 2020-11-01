@@ -119,6 +119,18 @@ impl<'a> Calculator<'a> {
             user_id,
         }
     }
+
+    /// Create a calculator to calculate the permissions of a role.
+    ///
+    /// Using the returned role calculator, you can calculate the permissions of
+    /// the role [in a specified channel][`in_channel`].
+    ///
+    /// [`in_channel`]: struct.RoleCalculator.html#method.in_channel
+    pub fn role(self, role_root_permissions: Permissions) -> RoleCalculator {
+        RoleCalculator {
+            permissions: role_root_permissions,
+        }
+    }
 }
 
 /// Calculate the permissions of a member.
@@ -373,6 +385,38 @@ impl<'a, T: IntoIterator<Item = &'a RoleId> + Clone> MemberCalculator<'a, T> {
         }
 
         Ok(permissions)
+    }
+}
+
+/// Calculate the permissions of a role.
+///
+/// Created via the [`Calculator::role`] method.
+///
+/// Using the role calculator, you can calculate the role's permissions in a
+/// given channel via [`in_channel`].
+///
+/// [`Calculator::role`]: struct.Calculator.html#method.role
+/// [`in_channel`]: #method.in_channel
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[must_use = "the role calculator isn't useful if you don't calculate permissions"]
+pub struct RoleCalculator {
+    permissions: Permissions,
+}
+
+impl RoleCalculator {
+    /// Calculate the permissions of the role in the given channel.
+    pub fn in_channel(
+        mut self,
+        permission_overwrite: PermissionOverwrite,
+    ) -> Result<Permissions, Error> {
+        if !matches!(permission_overwrite.kind, PermissionOverwriteType::Role(_)) {
+            return Err(Error::PermissionOverwriteNotRole);
+        }
+
+        self.permissions.remove(permission_overwrite.deny);
+        self.permissions.insert(permission_overwrite.allow);
+
+        Ok(self.permissions)
     }
 }
 

@@ -25,6 +25,8 @@ pub enum Error {
         /// ID of the user.
         user_id: UserId,
     },
+    /// Received Permission Overwrite is not a Role overwrite.
+    PermissionOverwriteNotRole,
 }
 
 impl Display for Error {
@@ -38,6 +40,9 @@ impl Display for Error {
                 "member {} is missing role {}",
                 user_id, role_id
             )),
+            Self::PermissionOverwriteNotRole => {
+                f.write_fmt(format_args!("permission overwrite is not role overwrite",))
+            }
         }
     }
 }
@@ -83,6 +88,10 @@ mod tests {
                 user_id: UserId(123)
             }
             .to_string(),
+        );
+        assert_eq!(
+            "permission overwrite is not role overwrite",
+            Error::PermissionOverwriteNotRole.to_string(),
         );
     }
 }
