@@ -1,5 +1,5 @@
 use std::{
-    error::Error as StdError,
+    error::Error,
     fmt::{Display, Formatter, Result as FmtResult},
 };
 use twilight_model::{
@@ -30,7 +30,7 @@ impl Display for RoleCalculatorError {
     }
 }
 
-impl StdError for RoleCalculatorError {}
+impl Error for RoleCalculatorError {}
 
 /// Calculate the permissions of a role.
 ///
@@ -69,7 +69,7 @@ mod tests {
     use super::{RoleCalculator, RoleCalculatorError};
     use static_assertions::assert_impl_all;
     use std::{
-        error::Error as StdError,
+        error::Error,
         fmt::{Debug, Display},
     };
 
@@ -77,10 +77,10 @@ mod tests {
         RoleCalculatorError: Clone,
         Debug,
         Display,
+        Error,
         Eq,
         PartialEq,
         Send,
-        StdError,
         Sync
     );
     assert_impl_all!(RoleCalculator: Clone, Debug, Eq, PartialEq, Send, Sync);
