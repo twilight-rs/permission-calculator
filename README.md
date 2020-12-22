@@ -70,10 +70,10 @@ let user_id = UserId(3);
 let member_roles = &[
     // Guild-level @everyone role that, by default, allows everyone to view
     // channels.
-    &(RoleId(1), Permissions::VIEW_CHANNEL),
+    (RoleId(1), Permissions::VIEW_CHANNEL),
     // Guild-level permission that grants members with the role the Send
     // Messages permission.
-    &(RoleId(2), Permissions::SEND_MESSAGES),
+    (RoleId(2), Permissions::SEND_MESSAGES),
 ];
 
 let channel_overwrites = &[

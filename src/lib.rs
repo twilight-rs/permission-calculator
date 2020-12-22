@@ -69,10 +69,10 @@
 //! let member_roles = &[
 //!     // Guild-level @everyone role that, by default, allows everyone to view
 //!     // channels.
-//!     &(RoleId(1), Permissions::VIEW_CHANNEL),
+//!     (RoleId(1), Permissions::VIEW_CHANNEL),
 //!     // Guild-level permission that grants members with the role the Send
 //!     // Messages permission.
-//!     &(RoleId(2), Permissions::SEND_MESSAGES),
+//!     (RoleId(2), Permissions::SEND_MESSAGES),
 //! ];
 //!
 //! let channel_overwrites = &[
@@ -234,7 +234,7 @@ impl Error for CalculatorError {}
 pub struct Calculator<'a> {
     continue_on_missing_items: bool,
     guild_id: GuildId,
-    member_roles: &'a [&'a (RoleId, Permissions)],
+    member_roles: &'a [(RoleId, Permissions)],
     owner_id: Option<UserId>,
     user_id: UserId,
 }
@@ -244,7 +244,7 @@ impl<'a> Calculator<'a> {
     pub fn new(
         guild_id: GuildId,
         user_id: UserId,
-        member_roles: &'a [&'a (RoleId, Permissions)],
+        member_roles: &'a [(RoleId, Permissions)],
     ) -> Self {
         Self {
             continue_on_missing_items: false,
@@ -506,7 +506,7 @@ impl<'a> InfallibleCalculator<'a> {
     pub fn new(
         guild_id: GuildId,
         user_id: UserId,
-        member_roles: &'a [&'a (RoleId, Permissions)],
+        member_roles: &'a [(RoleId, Permissions)],
     ) -> Self {
         let mut inner = Calculator::new(guild_id, user_id, member_roles);
         inner.continue_on_missing_items = true;
@@ -601,7 +601,7 @@ mod tests {
     fn test_owner_is_admin() {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
-        let member_roles = &[&(RoleId(1), Permissions::SEND_MESSAGES)];
+        let member_roles = &[(RoleId(1), Permissions::SEND_MESSAGES)];
 
         let calculator = Calculator::new(guild_id, user_id, member_roles).owner_id(user_id);
 
@@ -615,11 +615,11 @@ mod tests {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
         let member_roles = &[
-            &(
+            (
                 RoleId(1),
                 Permissions::MENTION_EVERYONE | Permissions::SEND_MESSAGES,
             ),
-            &(RoleId(3), Permissions::empty()),
+            (RoleId(3), Permissions::empty()),
         ];
 
         // First, test when it's denied for an overwrite on a role the user has.
@@ -654,8 +654,8 @@ mod tests {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
         let member_roles = &[
-            &(RoleId(1), Permissions::CONNECT),
-            &(RoleId(3), Permissions::SEND_MESSAGES),
+            (RoleId(1), Permissions::CONNECT),
+            (RoleId(3), Permissions::SEND_MESSAGES),
         ];
 
         let calculated = Calculator::new(guild_id, user_id, member_roles)
@@ -670,8 +670,8 @@ mod tests {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
         let member_roles = &[
-            &(RoleId(1), Permissions::CONNECT),
-            &(RoleId(3), Permissions::SEND_MESSAGES),
+            (RoleId(1), Permissions::CONNECT),
+            (RoleId(3), Permissions::SEND_MESSAGES),
         ];
 
         let calculated = Calculator::new(guild_id, user_id, member_roles)
@@ -688,13 +688,13 @@ mod tests {
         let guild_id = GuildId(1);
         let user_id = UserId(2);
         let member_roles = &[
-            &(
+            (
                 RoleId(1),
                 Permissions::MANAGE_MESSAGES
                     | Permissions::EMBED_LINKS
                     | Permissions::MENTION_EVERYONE,
             ),
-            &(RoleId(3), Permissions::empty()),
+            (RoleId(3), Permissions::empty()),
         ];
 
         // First, test when it's denied for an overwrite on a role the user has.
