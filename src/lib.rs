@@ -399,6 +399,12 @@ impl<'a> Calculator<'a> {
     ) -> Result<Permissions, CalculatorError> {
         let mut permissions = self.root()?;
 
+        // If the user contains the administrator privilege from the calculated
+        // root permissions, then we do not need to do any more work.
+        if permissions.contains(Permissions::ADMINISTRATOR) {
+            return Ok(permissions);
+        }
+
         // Hierarchy documentation:
         // <https://discord.com/developers/docs/topics/permissions#permission-overwrites>
         let mut member_allow = Permissions::empty();
@@ -726,5 +732,29 @@ mod tests {
         );
 
         assert_eq!(Permissions::SEND_MESSAGES, perms);
+    }
+
+    /// Test that a member that has a role with the "administrator" permission
+    /// has all denying overwrites ignored.
+    #[test]
+    fn test_admin() {
+        let calc = InfallibleCalculator::new(
+            GuildId(1),
+            UserId(2),
+            &[(RoleId(1), Permissions::ADMINISTRATOR)],
+        );
+        assert!(calc.root().is_all());
+
+        // Ensure that the denial of "send messages" doesn't actually occur due
+        // to the user being an administrator.
+        let perms = calc.in_channel(
+            ChannelType::GuildText,
+            &[PermissionOverwrite {
+                allow: Permissions::empty(),
+                deny: Permissions::SEND_MESSAGES,
+                kind: PermissionOverwriteType::Member(UserId(2)),
+            }],
+        );
+        assert!(perms.is_all());
     }
 }
