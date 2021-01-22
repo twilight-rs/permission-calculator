@@ -16,7 +16,7 @@ version = "0.1.0"
 
 [dependencies]
 tracing = { default-features = false, optional = true, version = "0.1" }
-twilight-model = { default-features = false, version = "0.2" }
+twilight-model = { default-features = false, version = "0.3" }
 
 [dev-dependencies]
 criterion = { default-features = false, version = "0.3" }
